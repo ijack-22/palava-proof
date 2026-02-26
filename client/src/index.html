@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palava Proof - Liberia's Scam Shield</title>
+    <meta name="description" content="Protect yourself from scams in Liberia">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563EB">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>
+                🛡️ Palava Proof
+                <span>Beta</span>
+            </h1>
+            <p class="subtitle">Liberia's Community Scam Shield</p>
+        </header>
+        
+        <main>
+            <div class="checker-card">
+                <h2>
+                    <span>🔍</span>
+                    Check a Message or Link
+                </h2>
+                
+                <div class="input-group">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Paste suspicious SMS, WhatsApp message, or link here..."
+                    ></textarea>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="checkButton">
+                        <span>🔍</span>
+                        Check for Scams
+                    </button>
+                    <button class="btn btn-secondary" id="clearButton">
+                        <span>🗑️</span>
+                        Clear
+                    </button>
+                </div>
+
+                <!-- Result Card -->
+                <div id="result" class="result-card hidden"></div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">📱</div>
+                    <h3>Works Offline</h3>
+                    <p>Check scams even without internet</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">👥</div>
+                    <h3>Community Powered</h3>
+                    <p>Report scams to protect others</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🇱🇷</div>
+                    <h3>Made for Liberia</h3>
+                    <p>Local scams, local solutions</p>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h2>📢 Report a Scam</h2>
+                <p>Help others by reporting suspicious numbers or messages you've received</p>
+                <button class="btn-report" id="reportButton">
+                    Report Scam
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <p>© 2025 Palava Proof - Protecting Liberia</p>
+            <p style="font-size: 0.8em; margin-top: 8px;">Ijack Guardian Ciphers</p>
+        </footer>
+    </div>
+    <script src="/app.js"></script>
+</body>
+</html>

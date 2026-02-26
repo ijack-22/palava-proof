@@ -1,0 +1,197 @@
+// Main application logic
+document.addEventListener('DOMContentLoaded', () => {
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered'))
+            .catch(err => console.log('Service Worker registration failed:', err));
+    }
+    
+    // Load scam database for offline use
+    loadOfflineDatabase();
+    
+    // Set up event listeners
+    document.getElementById('checkButton').addEventListener('click', checkMessage);
+    document.getElementById('reportButton').addEventListener('click', () => {
+        window.location.href = '/report.html';
+    });
+});
+
+// Load scam database for offline checking
+async function loadOfflineDatabase() {
+    try {
+        const response = await fetch('/api/scam-patterns');
+        const patterns = await response.json();
+        
+        // Store in IndexedDB for offline use
+        const db = await openDB();
+        const tx = db.transaction('scamPatterns', 'readwrite');
+        const store = tx.objectStore('scamPatterns');
+        
+        // Clear old patterns
+        await store.clear();
+        
+        // Store new patterns
+        patterns.forEach(pattern => store.add(pattern));
+        
+        console.log('Offline database updated');
+    } catch (error) {
+        console.log('Using offline patterns from cache');
+    }
+}
+
+// Check message function
+async function checkMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const resultBox = document.getElementById('result');
+    const message = messageInput.value.trim();
+    
+    if (!message) {
+        alert('Please paste a message to check');
+        return;
+    }
+    
+    resultBox.classList.remove('hidden');
+    resultBox.innerHTML = '<div class="loading">Checking for palava... 🔍</div>';
+    
+    try {
+        // Try online check first
+        const response = await fetch('http://192.168.1.145:5000/api/check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }            body: JSON.stringify({ message })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            displayResult(result);
+        } else {
+            // Fallback to offline check
+            const offlineResult = await offlineCheck(message);
+            displayResult(offlineResult);
+        }
+    } catch (error) {
+        // Offline or server down - use local check
+        console.log('Using offline check:', error);
+        const offlineResult = await offlineCheck(message);
+        displayResult(offlineResult);
+    }
+}
+
+// Offline checking using IndexedDB
+async function offlineCheck(message) {
+    const result = {
+        is_scam: false,
+        confidence: 0,
+        warnings: []
+    };
+    
+    // Local scam keywords (same as server)
+    const scamKeywords = [
+        'won.*prize', 'lottery', 'free.*data', 'free.*airtime',
+        'claim.*reward', 'click.*link.*win', 'verify.*account.*details',
+        'update.*orange.*money', 'your.*account.*locked'
+    ];
+    
+    // Check keywords
+    for (const pattern of scamKeywords) {
+        const regex = new RegExp(pattern, 'i');
+        if (regex.test(message)) {
+            result.is_scam = true;
+            result.confidence += 20;
+            result.warnings.push(`Suspicious phrase detected`);
+        }
+    }
+    
+    // Check URLs
+    const urlRegex = /http[s]?:\/\/[^\s]+/g;
+    const urls = message.match(urlRegex) || [];
+    
+    if (urls.length > 0) {
+        for (const url of urls) {
+            if (url.includes('bit.ly') || url.includes('tinyurl')) {
+                result.warnings.push('Shortened URLs can hide dangerous websites');
+            }
+        }
+    }
+    
+    result.confidence = Math.min(result.confidence, 100);
+    return result;
+}
+
+// Display result
+function displayResult(result) {
+    const resultBox = document.getElementById('result');
+    
+    let statusClass = 'safe';
+    let statusEmoji = '✅';
+    let statusText = 'This message appears safe';
+    
+    if (result.is_scam || result.confidence > 50) {
+        statusClass = 'scam';
+        statusEmoji = '⚠️';
+        statusText = 'PALAVA DETECTED! Be careful!';
+    } else if (result.confidence > 20) {
+        statusClass = 'suspicious';
+        statusEmoji = '⚠️';
+        statusText = 'Suspicious - check carefully';
+    }
+    
+    let html = `
+        <div class="result-header ${statusClass}">
+            <span class="status-emoji">${statusEmoji}</span>
+            <span class="status-text">${statusText}</span>
+            <span class="confidence">${result.confidence}% confidence</span>
+        </div>
+    `;
+    
+    if (result.warnings.length > 0) {
+        html += '<div class="warnings"><h4>Warnings:</h4><ul>';
+        result.warnings.forEach(warning => {
+            html += `<li>${warning}</li>`;
+        });
+        html += '</ul></div>';
+    }
+    
+    if (result.similar_scams && result.similar_scams.length > 0) {
+        html += '<div class="similar"><h4>Similar scams reported:</h4><ul>';
+        result.similar_scams.forEach(scam => {
+            html += `<li>${scam.content.substring(0, 100)}...</li>`;
+        });
+        html += '</ul></div>';
+    }
+    
+    html += `
+        <div class="result-actions">
+            <p>Was this helpful?</p>
+            <button onclick="markAccurate()">✅ Yes, accurate</button>
+            <button onclick="markInaccurate()">❌ No, needs review</button>
+        </div>
+        <div class="share">
+            <button onclick="shareResult()">📢 Share this warning</button>
+        </div>
+    `;
+    
+    resultBox.innerHTML = html;
+}
+
+// IndexedDB setup for offline storage
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('PalavaProofDB', 1);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('scamPatterns')) {
+                db.createObjectStore('scamPatterns', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('reportedScams')) {
+                db.createObjectStore('reportedScams', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+    });
+}
