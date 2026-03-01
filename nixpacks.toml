@@ -5,4 +5,4 @@ nixPkgs = ["python311", "python311Packages.pip"]
 cmds = ["cd backend && pip install -r requirements.txt --break-system-packages"]
 
 [start]
-cmd = "cd backend/app && gunicorn app:app --bind 0.0.0.0:$PORT"
+cmd = "cd backend/app && python -m gunicorn app:app --bind 0.0.0.0:$PORT"
