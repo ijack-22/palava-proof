@@ -1,12 +1,14 @@
+cat > ~/palava-proof/railway.json << 'EOF'
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "cd backend && pip install -r requirements.txt"
+    "buildCommand": "cd backend && pip3 install -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "cd backend && gunicorn app:app --bind 0.0.0.0:$PORT",
+    "startCommand": "cd backend/app && gunicorn app:app --bind 0.0.0.0:$PORT",
     "healthcheckPath": "/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
 }
+EOF
