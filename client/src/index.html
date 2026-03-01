@@ -3,84 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Palava Proof - Liberia's Scam Shield</title>
-    <meta name="description" content="Protect yourself from scams in Liberia">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#2563EB">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
-    <link rel="stylesheet" href="/styles.css">
+    <title>Palava Proof — Liberia's Scam Shield</title>
+    <meta name="description" content="Protect yourself from SMS and WhatsApp scams in Liberia. Community-powered scam detection.">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/public/manifest.json">
+    <meta name="theme-color" content="#0D1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Palava Proof">
+    <link rel="apple-touch-icon" href="/src/icons/icon-192.png">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Palava Proof — Liberia's Scam Shield">
+    <meta property="og:description" content="Community-powered scam detection for Liberia.">
+    <meta property="og:type" content="website">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body>
-    <div id="app">
-        <header>
-            <h1>
-                🛡️ Palava Proof
-                <span>Beta</span>
-            </h1>
-            <p class="subtitle">Liberia's Community Scam Shield</p>
-        </header>
-        
-        <main>
+
+<div id="app">
+
+    <!-- Header -->
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="logo">
+                <span class="logo-shield">🛡️</span>
+                <div>
+                    <span class="logo-name">Palava Proof</span>
+                    <span class="logo-badge">Beta</span>
+                </div>
+            </div>
+            <p class="tagline">Liberia's Community Scam Shield</p>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- Checker -->
+        <section class="checker-section">
+            <div class="section-label">SCAM CHECKER</div>
+            <h2 class="section-title">Paste a suspicious message</h2>
+            <p class="section-sub">We'll analyze it instantly — SMS, WhatsApp, or any link</p>
+
             <div class="checker-card">
-                <h2>
-                    <span>🔍</span>
-                    Check a Message or Link
-                </h2>
-                
-                <div class="input-group">
-                    <textarea 
-                        id="messageInput" 
-                        placeholder="Paste suspicious SMS, WhatsApp message, or link here..."
-                    ></textarea>
-                </div>
-                
-                <div class="action-buttons">
-                    <button class="btn btn-primary" id="checkButton">
-                        <span>🔍</span>
-                        Check for Scams
-                    </button>
-                    <button class="btn btn-secondary" id="clearButton">
-                        <span>🗑️</span>
-                        Clear
-                    </button>
-                </div>
+                <textarea
+                    id="messageInput"
+                    placeholder="Paste the suspicious message or link here..."
+                    spellcheck="false"
+                ></textarea>
 
-                <!-- Result Card -->
-                <div id="result" class="result-card hidden"></div>
-            </div>
+                <div class="char-count" id="charCount">0 characters</div>
 
-            <div class="features-grid">
-                <div class="feature-item">
-                    <div class="feature-icon">📱</div>
-                    <h3>Works Offline</h3>
-                    <p>Check scams even without internet</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">👥</div>
-                    <h3>Community Powered</h3>
-                    <p>Report scams to protect others</p>
-                </div>
-                <div class="feature-item">
-                    <div class="feature-icon">🇱🇷</div>
-                    <h3>Made for Liberia</h3>
-                    <p>Local scams, local solutions</p>
+                <div class="action-row">
+                    <button class="btn-check" id="checkButton">
+                        <span class="btn-icon">🔍</span>
+                        Check for Scam
+                    </button>
+                    <button class="btn-clear" id="clearButton" title="Clear">
+                        ✕ Clear
+                    </button>
                 </div>
             </div>
 
-            <div class="report-section">
-                <h2>📢 Report a Scam</h2>
-                <p>Help others by reporting suspicious numbers or messages you've received</p>
+            <!-- Result -->
+            <div id="result" class="result-area hidden"></div>
+        </section>
+
+        <!-- Stats bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-icon">📱</span>
+                <span class="stat-text">Works Offline</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-icon">👥</span>
+                <span class="stat-text">Community Powered</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-icon">🇱🇷</span>
+                <span class="stat-text">Made for Liberia</span>
+            </div>
+        </div>
+
+        <!-- Recent Scams -->
+        <section class="recent-section">
+            <div class="section-label">COMMUNITY REPORTS</div>
+            <h2 class="section-title">Recent Scams Reported</h2>
+            <div id="recentScams" class="recent-grid">
+                <div class="loading-state">Loading recent reports...</div>
+            </div>
+        </section>
+
+        <!-- Report CTA -->
+        <section class="report-cta">
+            <div class="cta-content">
+                <div class="cta-icon">📢</div>
+                <h2>Seen a scam? Report it.</h2>
+                <p>Your report warns other Liberians. Every submission helps protect your community.</p>
                 <button class="btn-report" id="reportButton">
-                    Report Scam
+                    Report a Scam →
                 </button>
             </div>
-        </main>
+        </section>
 
-        <footer>
-            <p>© 2025 Palava Proof - Protecting Liberia</p>
-            <p style="font-size: 0.8em; margin-top: 8px;">Ijack Guardian Ciphers</p>
-        </footer>
+    </main>
+
+    <!-- Report Modal -->
+    <div class="modal-overlay hidden" id="reportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📢 Report a Scam</h3>
+                <button class="modal-close" id="closeModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Scam Type</label>
+                    <select id="reportType">
+                        <option value="sms">📱 SMS</option>
+                        <option value="whatsapp">💬 WhatsApp</option>
+                        <option value="call">📞 Phone Call</option>
+                        <option value="link">🔗 Suspicious Link</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Message or Description</label>
+                    <textarea id="reportContent" placeholder="Paste the scam message here..." rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (if any)</label>
+                    <input type="tel" id="reportPhone" placeholder="e.g. 0776123456 or +231776123456">
+                </div>
+                <div class="form-group">
+                    <label>Suspicious Link (if any)</label>
+                    <input type="url" id="reportUrl" placeholder="https://...">
+                </div>
+                <button class="btn-submit" id="submitReport">
+                    Submit Report 🇱🇷
+                </button>
+                <div id="reportFeedback" class="report-feedback hidden"></div>
+            </div>
+        </div>
     </div>
-    <script src="/app.js"></script>
+
+    <footer>
+        <p>© 2025 Palava Proof · Protecting Liberia</p>
+        <p class="footer-sub">Ijack Guardian Ciphers</p>
+    </footer>
+
+</div>
+
+<script src="/src/app.js"></script>
 </body>
 </html>

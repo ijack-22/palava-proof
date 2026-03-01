@@ -1,311 +1,462 @@
-// Palava Proof - Modern UX Version
-console.log('🔥 Palava Proof loaded!');
+/**
+ * Palava Proof — app.js
+ * Calls the Flask backend for real scam detection.
+ *
+ * HOW THE API URL WORKS:
+ * - In development: set window.API_BASE via a <script> in index.html, or it defaults to '' (same origin)
+ * - In production on Railway: your frontend and backend are the same service,
+ *   so relative URLs ('/api/check') work automatically.
+ * - If you split frontend/backend into separate Railway services, set:
+ *   window.API_BASE = 'https://your-backend.up.railway.app'
+ *   in a <script> tag before this file loads, or use an env-injected config.
+ */
 
-// ==================== GLOBAL FUNCTIONS ====================
-window.markAccurate = function() {
-    alert('🙏 Thank you for your feedback! This helps improve Palava Proof.');
-    return false;
-};
+const API_BASE = window.API_BASE || '';
 
-window.markInaccurate = function() {
-    alert('📝 Thank you for letting us know. We\'ll review this message.');
-    return false;
-};
+// ─────────────────────────────────────────────
+// DOM READY
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
 
-window.shareResult = function() {
     const messageInput = document.getElementById('messageInput');
-    const message = messageInput ? messageInput.value.trim() : '';
-    
+    const checkBtn     = document.getElementById('checkButton');
+    const clearBtn     = document.getElementById('clearButton');
+    const reportBtn    = document.getElementById('reportButton');
+    const resultArea   = document.getElementById('result');
+    const charCount    = document.getElementById('charCount');
+
+    // Modal
+    const modal        = document.getElementById('reportModal');
+    const closeModal   = document.getElementById('closeModal');
+    const submitReport = document.getElementById('submitReport');
+    const reportFeedback = document.getElementById('reportFeedback');
+
+    // ── Character counter ────────────────────────────────────
+    messageInput.addEventListener('input', () => {
+        const len = messageInput.value.length;
+        charCount.textContent = `${len} character${len !== 1 ? 's' : ''}`;
+    });
+
+    // ── Check button ────────────────────────────────────────
+    checkBtn.addEventListener('click', handleCheck);
+
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) handleCheck();
+    });
+
+    // ── Clear button ─────────────────────────────────────────
+    clearBtn.addEventListener('click', () => {
+        messageInput.value = '';
+        charCount.textContent = '0 characters';
+        resultArea.classList.add('hidden');
+        resultArea.innerHTML = '';
+        messageInput.focus();
+    });
+
+    // ── Report modal ─────────────────────────────────────────
+    reportBtn.addEventListener('click', () => {
+        // Pre-fill if there's a message in the input
+        const msg = messageInput.value.trim();
+        if (msg) document.getElementById('reportContent').value = msg;
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeModal.addEventListener('click', closeReportModal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeReportModal();
+    });
+
+    submitReport.addEventListener('click', handleReport);
+
+    // ── Load recent scams ─────────────────────────────────────
+    loadRecentScams();
+
+    // ── Service Worker ────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/src/sw.js')
+            .then(() => console.log('✅ SW registered'))
+            .catch(err => console.warn('SW error:', err));
+    }
+});
+
+
+// ─────────────────────────────────────────────
+// CHECK MESSAGE — calls Flask API
+// ─────────────────────────────────────────────
+async function handleCheck() {
+    const messageInput = document.getElementById('messageInput');
+    const checkBtn     = document.getElementById('checkButton');
+    const resultArea   = document.getElementById('result');
+
+    const message = messageInput.value.trim();
     if (!message) {
-        alert('No message to share. Please check a message first.');
+        showInlineError(resultArea, 'Please paste a message to check.');
         return;
     }
-    
-    const shareText = `⚠️ Palava Proof Scam Alert ⚠️\n\nSuspicious message: "${message}"\n\nCheck scams at Palava Proof - Liberia's Community Scam Shield`;
-    
-    if (navigator.share) {
-        navigator.share({
-            title: 'Palava Proof Scam Alert',
-            text: shareText,
-            url: window.location.href,
-        }).catch(() => copyToClipboard(shareText));
-    } else {
-        copyToClipboard(shareText);
-    }
-    return false;
-};
 
-function copyToClipboard(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    
-    try {
-        document.execCommand('copy');
-        alert('📋 Warning copied to clipboard! Share with friends.');
-    } catch (err) {
-        alert('Could not copy. Please share manually.');
-    }
-    
-    document.body.removeChild(textarea);
-}
-
-// ==================== MAIN APP ====================
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📱 DOM ready');
-    
-    // Get DOM elements
-    const messageInput = document.getElementById('messageInput');
-    const checkBtn = document.getElementById('checkButton');
-    const clearBtn = document.getElementById('clearButton');
-    const reportBtn = document.getElementById('reportButton');
-    const resultBox = document.getElementById('result');
-    
-    // Clear button functionality
-    if (clearBtn && messageInput) {
-        clearBtn.addEventListener('click', () => {
-            messageInput.value = '';
-            resultBox.classList.add('hidden');
-            messageInput.focus();
-        });
-    }
-    
-    // Check button functionality
-    if (checkBtn && messageInput && resultBox) {
-        checkBtn.addEventListener('click', () => {
-            const message = messageInput.value.trim();
-            
-            if (!message) {
-                alert('Please paste a message to check');
-                return;
-            }
-            
-            // Show loading state
-            resultBox.classList.remove('hidden');
-            resultBox.innerHTML = '<div class="loading">Analyzing message...</div>';
-            
-            // Small delay to show loading (feels more responsive)
-            setTimeout(() => {
-                const result = analyzeMessage(message);
-                displayResult(result, message);
-            }, 300);
-        });
-    }
-    
-    // Report button functionality
-    if (reportBtn && messageInput) {
-        reportBtn.addEventListener('click', () => {
-            const message = messageInput.value.trim();
-            if (message) {
-                alert(`📢 Thank you for reporting!\n\nWe'll investigate: "${message.substring(0, 50)}..."`);
-            } else {
-                alert('Please paste the scam message in the box above before reporting.');
-            }
-        });
-    }
-    
-    // Ctrl+Enter shortcut
-    if (messageInput && checkBtn) {
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.ctrlKey) {
-                checkBtn.click();
-            }
-        });
-    }
-    
-    // Service Worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(() => console.log('✅ Service Worker registered'))
-            .catch(err => console.log('❌ Service Worker error:', err));
-    }
-});
-
-// ==================== SCAM DETECTION ====================
-function analyzeMessage(message) {
-    const messageLower = message.toLowerCase();
-    
-    // Scam indicators with categories
-    const indicators = {
-        urgency: ['urgent', 'immediately', 'now', 'today', 'limited', 'expires', 'deadline', 'action required'],
-        prizes: ['won', 'prize', 'winner', 'congratulations', 'awarded', 'selected', 'lucky'],
-        free: ['free', 'gift', 'bonus', 'reward', 'claim', 'discount', 'offer'],
-        account: ['account', 'verify', 'verification', 'update', 'locked', 'suspended', 'restricted'],
-        money: ['money', 'cash', 'transfer', 'payment', 'bank', 'orange money', 'mtn', 'loan'],
-        links: ['bit.ly', 'tinyurl', 'goo.gl', 'ow.ly', 'click', 'link'],
-        phone: ['077', '088', '055', '056', '231']
-    };
-    
-    let findings = [];
-    let confidence = 0;
-    
-    // Check each category
-    if (indicators.urgency.some(word => messageLower.includes(word))) {
-        findings.push({ type: 'urgency', text: 'Creates false urgency' });
-        confidence += 15;
-    }
-    
-    if (indicators.prizes.some(word => messageLower.includes(word))) {
-        findings.push({ type: 'prize', text: 'Claims you won something' });
-        confidence += 20;
-    }
-    
-    if (indicators.free.some(word => messageLower.includes(word))) {
-        findings.push({ type: 'free', text: 'Offers free gifts/money' });
-        confidence += 15;
-    }
-    
-    if (indicators.account.some(word => messageLower.includes(word))) {
-        findings.push({ type: 'account', text: 'Asks to verify account' });
-        confidence += 20;
-    }
-    
-    if (indicators.money.some(word => messageLower.includes(word))) {
-        findings.push({ type: 'money', text: 'Mentions money/transfers' });
-        confidence += 10;
-    }
-    
-    // Check for shortened URLs
-    if (indicators.links.some(link => messageLower.includes(link))) {
-        findings.push({ type: 'link', text: 'Contains shortened URL' });
-        confidence += 25;
-    }
-    
-    // Check for Liberian phone numbers
-    if (indicators.phone.some(code => message.includes(code))) {
-        findings.push({ type: 'phone', text: 'Contains Liberian phone number' });
-        confidence += 15;
-    }
-    
-    // Check for multiple exclamation marks or ALL CAPS
-    if (message.includes('!!!') || (message.match(/[A-Z]/g) || []).length > message.length * 0.4) {
-        findings.push({ type: 'shouting', text: 'Uses excessive urgency' });
-        confidence += 10;
-    }
-    
-    // Calculate final confidence and status
-    confidence = Math.min(confidence, 100);
-    
-    let status = 'safe';
-    if (confidence >= 60) {
-        status = 'danger';
-    } else if (confidence >= 30) {
-        status = 'suspicious';
-    }
-    
-    return {
-        status: status,
-        confidence: confidence,
-        findings: findings,
-        isScam: confidence >= 30
-    };
-}
-
-// ==================== DISPLAY RESULTS ====================
-function displayResult(result, originalMessage) {
-    const resultBox = document.getElementById('result');
-    
-    // Status configuration
-    const statusConfig = {
-        safe: {
-            icon: '✅',
-            title: 'This message appears safe',
-            class: 'safe',
-            bgColor: '#D1FAE5',
-            textColor: '#065F46'
-        },
-        suspicious: {
-            icon: '⚠️',
-            title: 'Suspicious - Check carefully',
-            class: 'suspicious',
-            bgColor: '#FEF3C7',
-            textColor: '#92400E'
-        },
-        danger: {
-            icon: '🚨',
-            title: 'PALAVA DETECTED! Do not respond!',
-            class: 'danger',
-            bgColor: '#FEE2E2',
-            textColor: '#991B1B'
-        }
-    };
-    
-    const config = statusConfig[result.status];
-    
-    // Build warnings HTML
-    let warningsHtml = '';
-    if (result.findings.length > 0) {
-        warningsHtml = '<div class="warnings-list"><h4>⚠️ Warning Signs Found:</h4>';
-        result.findings.forEach(finding => {
-            warningsHtml += `
-                <div class="warning-item">
-                    <span class="warning-icon">⚠️</span>
-                    <span class="warning-text">${finding.text}</span>
-                </div>
-            `;
-        });
-        warningsHtml += '</div>';
-    }
-    
-    // Build confidence meter
-    const confidenceColor = result.confidence > 60 ? '#EF4444' : (result.confidence > 30 ? '#F59E0B' : '#10B981');
-    
-    // Full result HTML
-    resultBox.innerHTML = `
-        <div class="status-badge ${config.class}" style="background: ${config.bgColor}; color: ${config.textColor};">
-            <span class="status-icon">${config.icon}</span>
-            <div class="status-content">
-                <div class="status-title">${config.title}</div>
-                <div class="status-confidence">${result.confidence}% confidence score</div>
-            </div>
-        </div>
-        
-        ${warningsHtml}
-        
-        <div style="margin: 20px 0; padding: 15px; background: #F3F4F6; border-radius: 8px;">
-            <div style="font-size: 0.9em; color: #6B7280; margin-bottom: 8px;">📝 Message analyzed:</div>
-            <div style="font-style: italic; color: #374151;">"${originalMessage.substring(0, 150)}${originalMessage.length > 150 ? '...' : ''}"</div>
-        </div>
-        
-        <div class="feedback-section">
-            <div class="feedback-buttons">
-                <button class="btn-feedback positive" onclick="window.markAccurate()">
-                    <span>👍</span> Yes, accurate
-                </button>
-                <button class="btn-feedback negative" onclick="window.markInaccurate()">
-                    <span>👎</span> No, needs review
-                </button>
-            </div>
-            <button class="btn-share" onclick="window.shareResult()">
-                <span>📤</span> Share Warning
-            </button>
+    // Loading state
+    checkBtn.disabled = true;
+    checkBtn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
+    resultArea.classList.remove('hidden');
+    resultArea.innerHTML = `
+        <div class="loading-result">
+            <div class="spinner"></div>
+            Analyzing message…
         </div>
     `;
-    
-    // Scroll to result smoothly
-    resultBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    try {
+        const res = await fetch(`${API_BASE}/api/check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+        });
+
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+        const data = await res.json();
+        renderResult(data, message);
+
+    } catch (err) {
+        console.error('API error:', err);
+        // Fallback to offline detection if API unreachable
+        const offlineResult = offlineAnalyze(message);
+        offlineResult._offline = true;
+        renderResult(offlineResult, message);
+    } finally {
+        checkBtn.disabled = false;
+        checkBtn.innerHTML = '<span class="btn-icon">🔍</span> Check for Scam';
+    }
 }
 
-// ==================== OFFLINE STORAGE ====================
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('PalavaProofDB', 1);
-        
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-        
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains('scamReports')) {
-                db.createObjectStore('scamReports', { keyPath: 'id', autoIncrement: true });
-            }
-        };
+
+// ─────────────────────────────────────────────
+// RENDER RESULT
+// ─────────────────────────────────────────────
+function renderResult(data, originalMessage) {
+    const resultArea = document.getElementById('result');
+
+    const confidence = data.confidence || 0;
+    const isScam = data.is_scam;
+    const warnings = data.warnings || [];
+    const tips = data.tips || [];
+    const scamTypeLabel = data.scam_type_label || '';
+
+    // Determine severity tier
+    let tier, emoji, verdict;
+    if (confidence >= 60) {
+        tier = 'danger';
+        emoji = '🚨';
+        verdict = 'PALAVA DETECTED — Do not respond!';
+    } else if (confidence >= 30) {
+        tier = 'warning';
+        emoji = '⚠️';
+        verdict = 'Suspicious — Proceed with caution';
+    } else {
+        tier = 'safe';
+        emoji = '✅';
+        verdict = 'Looks safe — Stay alert';
+    }
+
+    // Warnings HTML
+    let warningsHtml = '';
+    if (warnings.length > 0) {
+        warningsHtml = `
+            <div class="warnings-block">
+                <div class="warnings-title">⚑ Warning Signs Detected</div>
+                ${warnings.map(w => `
+                    <div class="warning-item">
+                        <span class="warning-dot">▸</span>
+                        <span>${escapeHtml(w)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Tips HTML
+    let tipsHtml = '';
+    if (tips.length > 0) {
+        tipsHtml = `
+            <div class="tips-block">
+                <div class="tips-title">💡 How to stay safe</div>
+                ${tips.map(t => `
+                    <div class="tip-item">
+                        <span class="tip-dot">▸</span>
+                        <span>${escapeHtml(t)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Offline notice
+    const offlineNotice = data._offline ? `
+        <div style="font-size:0.78rem;color:var(--text-3);margin-bottom:12px;padding:8px 12px;background:var(--bg-3);border-radius:6px;">
+            ⚡ Offline mode — result based on local analysis
+        </div>
+    ` : '';
+
+    resultArea.innerHTML = `
+        ${offlineNotice}
+        <div class="status-card ${tier}">
+            <div class="status-top">
+                <div class="status-emoji">${emoji}</div>
+                <div class="status-info">
+                    <div class="status-verdict">${verdict}</div>
+                    ${scamTypeLabel ? `<div class="status-type">${scamTypeLabel}</div>` : ''}
+                    <div class="confidence-track">
+                        <div class="confidence-fill" style="width: 0%" data-target="${confidence}"></div>
+                    </div>
+                    <div class="confidence-label">${confidence}% scam confidence</div>
+                </div>
+            </div>
+        </div>
+
+        ${warningsHtml}
+        ${tipsHtml}
+
+        <div class="message-preview">
+            "${escapeHtml(originalMessage.substring(0, 120))}${originalMessage.length > 120 ? '…' : ''}"
+        </div>
+
+        <div class="result-actions">
+            <button class="btn-feedback" onclick="sendFeedback('accurate')">👍 Accurate</button>
+            <button class="btn-feedback" onclick="sendFeedback('inaccurate')">👎 Wrong result</button>
+            <button class="btn-share-result" onclick="shareWarning()">📤 Share Warning</button>
+        </div>
+    `;
+
+    // Animate confidence bar
+    requestAnimationFrame(() => {
+        const fill = resultArea.querySelector('.confidence-fill');
+        if (fill) {
+            setTimeout(() => {
+                fill.style.width = fill.dataset.target + '%';
+            }, 50);
+        }
     });
+
+    resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ==================== SYNC WHEN ONLINE ====================
-window.addEventListener('online', () => {
-    console.log('📡 Back online - ready to sync');
-    // Could add auto-sync here later
-});
+
+// ─────────────────────────────────────────────
+// REPORT MODAL
+// ─────────────────────────────────────────────
+function closeReportModal() {
+    document.getElementById('reportModal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+async function handleReport() {
+    const content  = document.getElementById('reportContent').value.trim();
+    const type     = document.getElementById('reportType').value;
+    const phone    = document.getElementById('reportPhone').value.trim();
+    const url      = document.getElementById('reportUrl').value.trim();
+    const submitBtn = document.getElementById('submitReport');
+    const feedback  = document.getElementById('reportFeedback');
+
+    if (!content) {
+        showFeedback(feedback, 'error', 'Please describe the scam before submitting.');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+    feedback.classList.add('hidden');
+
+    try {
+        const res = await fetch(`${API_BASE}/api/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, type, phone_number: phone || null, url: url || null }),
+        });
+
+        if (!res.ok) throw new Error('Server error');
+        const data = await res.json();
+
+        showFeedback(feedback, 'success', `✅ ${data.message}`);
+
+        // Reset form after 2s
+        setTimeout(() => {
+            document.getElementById('reportContent').value = '';
+            document.getElementById('reportPhone').value   = '';
+            document.getElementById('reportUrl').value     = '';
+            closeReportModal();
+            feedback.classList.add('hidden');
+            loadRecentScams(); // Refresh list
+        }, 2000);
+
+    } catch (err) {
+        showFeedback(feedback, 'error', '❌ Could not submit. Check your connection and try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Report 🇱🇷';
+    }
+}
+
+
+// ─────────────────────────────────────────────
+// RECENT SCAMS
+// ─────────────────────────────────────────────
+async function loadRecentScams() {
+    const container = document.getElementById('recentScams');
+
+    try {
+        const res = await fetch(`${API_BASE}/api/recent-scams`);
+        if (!res.ok) throw new Error('Failed');
+        const scams = await res.json();
+
+        if (!scams.length) {
+            container.innerHTML = '<div class="empty-state">No community reports yet. Be the first to report a scam.</div>';
+            return;
+        }
+
+        const typeLabels = {
+            sms: '📱 SMS', whatsapp: '💬 WhatsApp',
+            call: '📞 Call', link: '🔗 Link', sms_scam: '📱 SMS'
+        };
+
+        container.innerHTML = scams.map(s => `
+            <div class="scam-card">
+                <span class="scam-type-badge">${typeLabels[s.type] || s.type || 'Unknown'}</span>
+                <div class="scam-info">
+                    <div class="scam-preview">${escapeHtml((s.content || s.url || s.phone_number || 'No details').substring(0, 80))}</div>
+                    <div class="scam-meta">
+                        <span>Reported ${s.times_reported}×</span>
+                        ${s.reported_at ? `<span>${formatDate(s.reported_at)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch {
+        container.innerHTML = '<div class="empty-state">Could not load recent reports. Check your connection.</div>';
+    }
+}
+
+
+// ─────────────────────────────────────────────
+// SHARE WARNING
+// ─────────────────────────────────────────────
+window.shareWarning = function() {
+    const input = document.getElementById('messageInput').value.trim();
+    const shareText = `⚠️ Palava Proof Scam Alert 🛡️\n\nSuspicious message:\n"${input.substring(0, 200)}"\n\nProtect yourself — check scams at Palava Proof, Liberia's Community Scam Shield`;
+
+    if (navigator.share) {
+        navigator.share({ title: 'Palava Proof Scam Alert', text: shareText })
+            .catch(() => fallbackCopy(shareText));
+    } else {
+        fallbackCopy(shareText);
+    }
+};
+
+function fallbackCopy(text) {
+    navigator.clipboard.writeText(text)
+        .then(() => showToast('📋 Copied to clipboard!'))
+        .catch(() => showToast('Could not copy — please share manually.'));
+}
+
+
+// ─────────────────────────────────────────────
+// FEEDBACK
+// ─────────────────────────────────────────────
+window.sendFeedback = function(type) {
+    showToast(type === 'accurate'
+        ? '🙏 Thank you! This helps us improve.'
+        : '📝 Got it — we\'ll review this detection.'
+    );
+};
+
+
+// ─────────────────────────────────────────────
+// OFFLINE FALLBACK ANALYZER
+// Used when API is unreachable (e.g. no internet)
+// ─────────────────────────────────────────────
+function offlineAnalyze(message) {
+    const m = message.toLowerCase();
+    let confidence = 0;
+    const warnings = [];
+
+    const checks = [
+        [/(won|prize|winner|lottery|congratulations)/i,       25, 'Claims you won something'],
+        [/(momo|mobile money|lonestar cash|orange money)/i,   20, 'References mobile money'],
+        [/(verify|confirm|update).{0,30}(account|details)/i,  20, 'Asks to verify account'],
+        [/(urgent|immediately|limited time)/i,                 10, 'Creates urgency'],
+        [/(bit\.ly|tinyurl|ow\.ly)/i,                         20, 'Contains shortened URL'],
+        [/(registration|processing|training).{0,10}fee/i,     25, 'Asks for upfront fee'],
+        [/(free airtime|free data)/i,                         15, 'Promises free airtime/data'],
+        [/(pin|password|otp).{0,20}(send|reply|share)/i,      30, 'Asks for PIN or OTP'],
+    ];
+
+    checks.forEach(([re, score, label]) => {
+        if (re.test(m)) { confidence += score; warnings.push(label); }
+    });
+
+    return {
+        is_scam: confidence >= 30,
+        confidence: Math.min(confidence, 100),
+        scam_type: null,
+        scam_type_label: null,
+        warnings,
+        tips: ['Never share your PIN or OTP with anyone.', 'When in doubt, don\'t respond.'],
+    };
+}
+
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function formatDate(dateStr) {
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-LR', { month: 'short', day: 'numeric' });
+    } catch { return ''; }
+}
+
+function showFeedback(el, type, message) {
+    el.className = `report-feedback ${type}`;
+    el.textContent = message;
+}
+
+function showInlineError(container, message) {
+    container.classList.remove('hidden');
+    container.innerHTML = `<div class="error-result">⚠️ ${message}</div>`;
+}
+
+function showToast(message) {
+    const existing = document.getElementById('palava-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'palava-toast';
+    toast.textContent = message;
+    Object.assign(toast.style, {
+        position: 'fixed', bottom: '24px', left: '50%',
+        transform: 'translateX(-50%)',
+        background: '#1C2128', color: '#E6EDF3',
+        border: '1px solid rgba(255,255,255,0.12)',
+        padding: '12px 20px', borderRadius: '10px',
+        fontSize: '0.88rem', zIndex: '9999',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        animation: 'fadeUp 0.25s ease',
+        whiteSpace: 'nowrap',
+    });
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+window.addEventListener('online',  () => showToast('📡 Back online'));
+window.addEventListener('offline', () => showToast('⚡ Offline mode — using local detection'));
