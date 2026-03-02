@@ -49,7 +49,7 @@ PATTERNS = [
     # ── MOBILE MONEY ──
     (r'send.*pin|share.*pin|pin.*momo|momo.*pin|give.*pin', 30, 'mobile_money', 'Never share your PIN with anyone — not even MTN or Lonestar staff.'),
     (r'mtn.*momo|momo.*transfer|lonestar.*cash|orange.*money', 15, 'mobile_money', 'Verify all mobile money requests by calling the sender directly.'),
-    (r'reverse.*transaction|wrong.*transfer.*send back|mistaken.*transfer|refund.*momo', 25, 'mobile_money', 'Legitimate wrong transfers are reversed by the network — you never send money back.'),
+    (r'reverse.*transaction|wrong.*transfer|send back.*money|secret.*code.*reverse|reverse.*back|refund.*momo', 25, 'mobile_money', 'Legitimate wrong transfers are reversed by the network — you never send money back.'),
     (r'agent.*send.*money|momo.*agent.*request|transfer.*agent', 20, 'mobile_money', 'Real agents never ask you to send money to complete a transaction.'),
     (r'momo.*hack|account.*hack.*momo|your.*momo.*compromised', 25, 'mobile_money', 'This is a fear tactic to make you act without thinking.'),
     (r'dial.*\*1[0-9]{2}\*|ussd.*code.*send|press.*\*[0-9]+\*', 20, 'mobile_money', 'Never dial USSD codes sent to you by strangers — they can transfer your money.'),
@@ -71,7 +71,7 @@ PATTERNS = [
     # ── FAKE JOBS ──
     (r'whatsapp.*job|job.*whatsapp|recruiter.*whatsapp|hiring.*whatsapp', 20, 'job_scam', 'Legitimate employers do not recruit solely via WhatsApp.'),
     (r'work.*home.*earn|earn.*daily.*usd|make.*money.*online.*liberia|earn.*per.*day', 20, 'job_scam', 'Work-from-home schemes promising quick USD earnings are almost always scams.'),
-    (r'un.*job|ngo.*hiring|unicef.*recruitment|undp.*vacancy|world.*bank.*job', 25, 'job_scam', 'Verify UN/NGO jobs only at their official websites — never through WhatsApp.'),
+    (r'un.*job|ngo.*hiring|unicef.*recruit|undp.*recruit|undp.*liberia|world.*bank.*job', 25, 'job_scam', 'Verify UN/NGO jobs only at their official websites — never through WhatsApp.'),
     (r'upfront.*fee.*job|pay.*register.*job|training.*fee.*employment|registration.*fee.*work', 30, 'job_scam', 'Legitimate employers never ask you to pay to get a job.'),
     (r'data.*entry.*job.*liberia|typing.*job.*earn|copy.*paste.*earn', 20, 'job_scam', 'Data entry and typing jobs that pay unusually well are almost always scams.'),
     (r'ambassador.*program.*earn|brand.*ambassador.*fee|influencer.*job.*pay', 20, 'job_scam', 'Paid ambassador programs that require upfront fees are scams.'),
