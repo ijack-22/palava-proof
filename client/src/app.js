@@ -323,11 +323,11 @@ async function loadRecentScams() {
 
         container.innerHTML = scams.map(s => `
             <div class="scam-card">
-                <span class="scam-type-badge">${typeLabels[s.type] || s.type || 'Unknown'}</span>
+                <span class="scam-type-badge">${typeLabels[s.scam_type] || s.scam_type || 'Unknown'}</span>
                 <div class="scam-info">
-                    <div class="scam-preview">${escapeHtml((s.content || s.url || s.phone_number || 'No details').substring(0, 80))}</div>
+                    <div class="scam-preview">${escapeHtml((s.message || s.url || s.phone || 'No details').substring(0, 80))}</div>
                     <div class="scam-meta">
-                        <span>Reported ${s.times_reported}×</span>
+                        <span>Reported</span>
                         ${s.reported_at ? `<span>${formatDate(s.reported_at)}</span>` : ''}
                     </div>
                 </div>
