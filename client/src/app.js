@@ -308,7 +308,8 @@ async function loadRecentScams() {
     try {
         const res = await fetch(`${API_BASE}/api/recent-scams`);
         if (!res.ok) throw new Error('Failed');
-        const scams = await res.json();
+        const data = await res.json();
+        const scams = data.scams || [];
 
         if (!scams.length) {
             container.innerHTML = '<div class="empty-state">No community reports yet. Be the first to report a scam.</div>';
