@@ -271,9 +271,9 @@ def report_scam():
     if not data or 'message' not in data:
         return jsonify({'error': 'Message is required'}), 400
 
-    phone = data.get('phone', '').strip()
-    url = data.get('url', '').strip()
-    scam_type = data.get('scam_type', 'unknown')
+    phone = (data.get('phone') or data.get('phone_number') or '').strip()
+    url = (data.get('url') or '').strip()
+    scam_type = data.get('scam_type') or data.get('type', 'unknown')
     message = data.get('message', '')
 
     conn = sqlite3.connect(DB_PATH)
