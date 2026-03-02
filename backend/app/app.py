@@ -101,7 +101,7 @@ PATTERNS = [
     (r'pyramid.*scheme|referral.*bonus.*unlimited|join.*earn.*recruit', 25, 'investment', 'Schemes where earnings depend on recruiting others are pyramid schemes.'),
 
     # ── LIBERIA-SPECIFIC ──
-    (r'\+231.*prize|\+231.*won|231.*lucky|+231.*claim', 20, 'lottery', 'Liberian phone numbers used in prize notifications are a common scam pattern.'),
+    (r'\+231.*prize|\+231.*won|231.*lucky|\+231.*claim', 20, 'lottery', 'Liberian phone numbers used in prize notifications are a common scam pattern.'),
     (r'liberiabank.*verify|lbdi.*urgent|ecobank.*liberia.*click', 25, 'phishing', 'Banks in Liberia will never ask you to verify via SMS link.'),
     (r'ministry.*liberia.*payment|government.*liberia.*transfer|mof\.gov\.lr', 25, 'phishing', 'Government payments in Liberia are never processed via SMS links.'),
 ]
