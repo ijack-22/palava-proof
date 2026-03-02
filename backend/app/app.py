@@ -96,7 +96,7 @@ PATTERNS = [
     (r'diplomat.*package|customs.*clearance.*fee|delivery.*package.*fee', 25, 'advance_fee', 'Package delivery fees requested via message are almost always advance fee scams.'),
 
     # ── INVESTMENT SCAMS ──
-    (r'double.*money|invest.*get.*double|100%.*return|guaranteed.*profit', 30, 'investment', 'No legitimate investment guarantees doubled returns — this is a Ponzi scheme.'),
+    (r'double.*money|invest.*get.*double|100.*%.*return|100%.*profit|guaranteed.*profit|guaranteed.*return', 30, 'investment', 'No legitimate investment guarantees doubled returns — this is a Ponzi scheme.'),
     (r'crypto.*invest.*liberia|bitcoin.*profit.*guaranteed|forex.*signal.*group', 25, 'investment', 'Cryptocurrency investment groups promising guaranteed returns are scams.'),
     (r'pyramid.*scheme|referral.*bonus.*unlimited|join.*earn.*recruit', 25, 'investment', 'Schemes where earnings depend on recruiting others are pyramid schemes.'),
 
@@ -257,7 +257,7 @@ def check_message():
     dominant_type = max(scam_types, key=scam_types.get) if scam_types else None
 
     return jsonify({
-        'is_scam': confidence >= 35,
+        'is_scam': confidence >= 30,
         'confidence': confidence,
         'scam_type': SCAM_LABELS.get(dominant_type) if dominant_type else None,
         'warnings': list(dict.fromkeys(warnings)),
