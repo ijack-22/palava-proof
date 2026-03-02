@@ -272,7 +272,7 @@ async function handleReport() {
         const res = await fetch(`${API_BASE}/api/report`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content, type, phone_number: phone || null, url: url || null }),
+            body: JSON.stringify({ message: content, type, phone_number: phone || null, url: url || null }),
         });
 
         if (!res.ok) throw new Error('Server error');
