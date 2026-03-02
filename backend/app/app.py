@@ -316,10 +316,10 @@ def report_scam():
 def recent_scams():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('SELECT scam_type, reported_at FROM reports ORDER BY reported_at DESC LIMIT 10')
+    c.execute('SELECT scam_type, reported_at, message, phone, url FROM reports ORDER BY reported_at DESC LIMIT 10')
     rows = c.fetchall()
     conn.close()
-    return jsonify({'scams': [{'scam_type': r[0], 'reported_at': r[1]} for r in rows]})
+    return jsonify({'scams': [{'scam_type': r[0], 'reported_at': r[1], 'message': r[2], 'phone': r[3], 'url': r[4]} for r in rows]})
 
 @app.route('/api/stats', methods=['GET'])
 def stats():
