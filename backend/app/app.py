@@ -1,5 +1,7 @@
 import os
 import re
+import hashlib
+import requests as http_requests
 import sqlite3
 import hashlib
 from flask import Flask, request, jsonify
@@ -45,6 +47,8 @@ init_db()
 
 # ── Scam Patterns ───────────────────────────────────────────
 # Format: (pattern, weight, scam_type, tip)
+VT_API_KEY = os.environ.get('VT_API_KEY', '')
+
 PATTERNS = [
     # ── MOBILE MONEY ──
     (r'send.*pin|share.*pin|pin.*momo|momo.*pin|give.*pin', 30, 'mobile_money', 'Never share your PIN with anyone — not even MTN or Lonestar staff.'),
@@ -260,6 +264,13 @@ def check_message():
         confidence += url_score
         warnings.extend(url_flags)
 
+    # ── VirusTotal URL check ──
+    vt_urls = extract_urls(message)
+    vt_results = [check_url_virustotal(u) for u in vt_urls[:3]]
+    vt_score, vt_warnings, vt_tips = vt_score_and_tips([r for r in vt_results if r])
+    confidence += vt_score
+    warnings = warnings + vt_warnings
+    tips = tips + vt_tips
     confidence = min(confidence, 100)
     dominant_type = max(scam_types, key=scam_types.get) if scam_types else None
 
@@ -349,3 +360,69 @@ def stats():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
+def extract_urls(text):
+    url_pattern = re.compile(r'(https?://[^\s]+|www\.[^\s]+)', re.IGNORECASE)
+    urls = url_pattern.findall(text)
+    return [u if u.startswith('http') else 'http://' + u for u in urls]
+
+def check_url_virustotal(url):
+    if not VT_API_KEY:
+        return None
+    try:
+        submit_res = http_requests.post(
+            'https://www.virustotal.com/api/v3/urls',
+            headers={'x-apikey': VT_API_KEY},
+            data={'url': url},
+            timeout=10
+        )
+        if submit_res.status_code != 200:
+            return None
+        analysis_id = submit_res.json().get('data', {}).get('id')
+        if not analysis_id:
+            return None
+        result_res = http_requests.get(
+            f'https://www.virustotal.com/api/v3/analyses/{analysis_id}',
+            headers={'x-apikey': VT_API_KEY},
+            timeout=10
+        )
+        if result_res.status_code != 200:
+            return None
+        stats = result_res.json().get('data', {}).get('attributes', {}).get('stats', {})
+        malicious  = stats.get('malicious', 0)
+        suspicious = stats.get('suspicious', 0)
+        harmless   = stats.get('harmless', 0)
+        undetected = stats.get('undetected', 0)
+        total      = malicious + suspicious + harmless + undetected
+        flagged_by = malicious + suspicious
+        if malicious >= 3:
+            verdict = 'malicious'
+        elif flagged_by >= 1:
+            verdict = 'suspicious'
+        else:
+            verdict = 'clean'
+        url_id    = hashlib.sha256(url.lower().encode()).hexdigest()
+        permalink = f'https://www.virustotal.com/gui/url/{url_id}'
+        return {'url': url, 'flagged_by': flagged_by, 'malicious': malicious, 'suspicious': suspicious, 'total': total, 'verdict': verdict, 'permalink': permalink}
+    except Exception as e:
+        print(f'VirusTotal check failed for {url}: {e}')
+        return None
+
+def vt_score_and_tips(vt_results):
+    extra_score = 0
+    warnings = []
+    tips = []
+    for r in vt_results:
+        if r is None:
+            continue
+        if r['verdict'] == 'malicious':
+            extra_score += min(r['malicious'] * 5, 40)
+            warnings.append(f"🚨 {r['url']} flagged MALICIOUS by {r['malicious']} vendors on VirusTotal.")
+            tips.append('Do not click this link. It has been confirmed malicious by multiple security tools.')
+        elif r['verdict'] == 'suspicious':
+            extra_score += 20
+            warnings.append(f"⚠️ {r['url']} flagged suspicious by {r['flagged_by']} vendor(s) on VirusTotal.")
+            tips.append('This link is flagged as suspicious. Avoid clicking until you verify the source.')
+        elif r['verdict'] == 'clean' and r['total'] > 0:
+            warnings.append(f"✅ {r['url']} checked by {r['total']} vendors — no threats detected.")
+    return extra_score, warnings, tips
