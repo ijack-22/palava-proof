@@ -100,6 +100,13 @@ PATTERNS = [
     (r'crypto.*invest.*liberia|bitcoin.*profit.*guaranteed|forex.*signal.*group', 25, 'investment', 'Cryptocurrency investment groups promising guaranteed returns are scams.'),
     (r'pyramid.*scheme|referral.*bonus.*unlimited|join.*earn.*recruit', 25, 'investment', 'Schemes where earnings depend on recruiting others are pyramid schemes.'),
 
+    # ── URL SECURITY ──
+    (r'http://[^s]+', 30, 'phishing', 'This link uses HTTP (not HTTPS) — it is insecure and commonly used in scams. Never click it.'),
+    (r'visit.*http|click.*http|go.*to.*http|collect.*http|claim.*http', 35, 'phishing', 'Scammers use HTTP links to steal your information. Legitimate sites always use HTTPS.'),
+    (r'rnicrosoft|arnazon|gooogle|faceb00k|paypa1|rnicr0soft|micros0ft|micosoft', 35, 'phishing', 'This URL is impersonating a known brand — this is a phishing attack.'),
+    (r'you.*won.*gift|won.*yourself|gift.*collect|collect.*winning|collect.*prize', 30, 'lottery', 'Unsolicited gift or prize notifications are almost always scams.'),
+    (r'winings|winnigs|priize|gigt|lotterry|competiton', 25, 'phishing', 'Deliberate misspellings are used by scammers to bypass spam filters.'),
+
     # ── LIBERIA-SPECIFIC ──
     (r'\+231.*prize|\+231.*won|231.*lucky|\+231.*claim', 20, 'lottery', 'Liberian phone numbers used in prize notifications are a common scam pattern.'),
     (r'liberiabank.*verify|lbdi.*urgent|ecobank.*liberia.*click', 25, 'phishing', 'Banks in Liberia will never ask you to verify via SMS link.'),
