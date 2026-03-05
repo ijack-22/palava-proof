@@ -40,6 +40,15 @@ def init_db():
         scam_type TEXT,
         last_reported TEXT
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS subscribers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT UNIQUE NOT NULL,
+        city TEXT,
+        country TEXT DEFAULT 'Liberia',
+        subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        active INTEGER DEFAULT 1
+    )''')
     c.execute('''CREATE TABLE IF NOT EXISTS url_blacklist (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         domain TEXT UNIQUE,
