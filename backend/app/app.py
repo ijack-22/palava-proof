@@ -1,9 +1,11 @@
 import os
 import re
 import hashlib
+import json
 import requests as http_requests
 import sqlite3
 import hashlib
+import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from datetime import datetime
@@ -271,6 +273,12 @@ def check_message():
     confidence += vt_score
     warnings = warnings + vt_warnings
     tips = tips + vt_tips
+    # ── Claude AI boost (only when confidence < 70%) ──
+    if confidence < 70:
+        ai_boost, ai_reasons, ai_tips = analyze_with_claude(message, confidence)
+        confidence += ai_boost
+        warnings = warnings + [r for r in ai_reasons if r not in warnings]
+        tips = tips + [t for t in ai_tips if t not in tips]
     confidence = min(confidence, 100)
     dominant_type = max(scam_types, key=scam_types.get) if scam_types else None
 
@@ -426,3 +434,52 @@ def vt_score_and_tips(vt_results):
         elif r['verdict'] == 'clean' and r['total'] > 0:
             warnings.append(f"✅ {r['url']} checked by {r['total']} vendors — no threats detected.")
     return extra_score, warnings, tips
+
+def analyze_with_claude(message, current_confidence):
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if not api_key:
+        return 0, [], []
+    try:
+        payload = {
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 300,
+            "messages": [{
+                "role": "user",
+                "content": f"""You are a scam detection expert for Liberia. Analyze this message and respond ONLY with JSON.
+
+Message: "{message}"
+
+Respond with exactly this JSON format:
+{{
+  "is_scam": true or false,
+  "confidence_boost": 0-40,
+  "reasons": ["reason1", "reason2"],
+  "tips": ["tip1"]
+}}
+
+confidence_boost is how much to add to the current score of {current_confidence}%.
+Focus on: social engineering, urgency, PIN requests, fake URLs, impersonation, mobile money fraud, prize scams."""
+            }]
+        }
+        res = http_requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json'
+            },
+            json=payload,
+            timeout=15
+        )
+        if res.status_code != 200:
+            return 0, [], []
+        text = res.json().get('content', [{}])[0].get('text', '{}')
+        text = text.replace('```json', '').replace('```', '').strip()
+        result = json.loads(text)
+        boost = int(result.get('confidence_boost', 0))
+        reasons = result.get('reasons', [])
+        tips = result.get('tips', [])
+        return boost, reasons, tips
+    except Exception as e:
+        print(f'Claude AI analysis failed: {e}')
+        return 0, [], []
