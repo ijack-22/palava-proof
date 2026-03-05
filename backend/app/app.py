@@ -8,11 +8,15 @@ import hashlib
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from datetime import datetime
 from urllib.parse import urlparse
 
 app = Flask(__name__)
-allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"], storage_uri="memory://")
+allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
+allowed_origins = [o.strip() for o in allowed_origins_str.split(",")] if "," in allowed_origins_str else allowed_origins_str
 CORS(app, origins=allowed_origins)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'palava_proof.db')
@@ -225,12 +229,27 @@ def health():
     return jsonify({'status': 'ok', 'service': 'Palava Proof API', 'patterns': len(PATTERNS)})
 
 @app.route('/api/check', methods=['POST'])
+@limiter.limit('30 per minute')
+
+def require_api_key(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = request.headers.get('X-API-Key')
+        api_secret = os.environ.get('API_SECRET', '')
+        if api_secret and (not key or key != api_secret):
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
 def check_message():
     data = request.get_json()
     if not data or 'message' not in data:
         return jsonify({'error': 'Message is required'}), 400
 
-    message = data['message'].strip()
+    message = data["message"].strip()
+    if len(message) > 2000:
+        return jsonify({"error": "Message too long. Maximum 2000 characters."}), 400
     if not message:
         return jsonify({'error': 'Message cannot be empty'}), 400
 
@@ -292,6 +311,7 @@ def check_message():
     })
 
 @app.route('/api/report', methods=['POST'])
+@limiter.limit('10 per minute')
 def report_scam():
     data = request.get_json()
     if not data or 'message' not in data:
@@ -483,3 +503,70 @@ Focus on: social engineering, urgency, PIN requests, fake URLs, impersonation, m
     except Exception as e:
         print(f'Claude AI analysis failed: {e}')
         return 0, [], []
+
+
+@app.route('/api/subscribe', methods=['POST'])
+@limiter.limit('5 per minute')
+def subscribe():
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    city = (data.get('city') or '').strip()
+    country = (data.get('country') or 'Liberia').strip()
+
+    if not name or not phone:
+        return jsonify({'error': 'Name and phone are required'}), 400
+
+    if len(phone) < 8:
+        return jsonify({'error': 'Invalid phone number'}), 400
+
+    # Normalize Liberian numbers
+    if phone.startswith('0'):
+        phone = '+231' + phone[1:]
+    elif not phone.startswith('+'):
+        phone = '+231' + phone
+
+    conn = get_db()
+    try:
+        existing = conn.execute('SELECT id, active FROM subscribers WHERE phone = ?', (phone,)).fetchone()
+        if existing:
+            if existing['active']:
+                return jsonify({'message': 'Already subscribed!'}), 200
+            else:
+                conn.execute('UPDATE subscribers SET active = 1 WHERE phone = ?', (phone,))
+                conn.commit()
+                return jsonify({'message': 'Welcome back! You are subscribed again.'}), 200
+
+        conn.execute(
+            'INSERT INTO subscribers (name, phone, city, country) VALUES (?, ?, ?, ?)',
+            (name, phone, city, country)
+        )
+        conn.commit()
+        return jsonify({'message': f'Welcome {name}! You will receive scam alerts via SMS.'}), 201
+    except Exception as e:
+        return jsonify({'error': 'Subscription failed'}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/unsubscribe', methods=['POST'])
+@limiter.limit('5 per minute')
+def unsubscribe():
+    data = request.get_json() or {}
+    phone = (data.get('phone') or '').strip()
+    if not phone:
+        return jsonify({'error': 'Phone number required'}), 400
+    conn = get_db()
+    try:
+        conn.execute('UPDATE subscribers SET active = 0 WHERE phone = ?', (phone,))
+        conn.commit()
+        return jsonify({'message': 'Unsubscribed successfully'}), 200
+    finally:
+        conn.close()
+
+@app.route('/api/debug-ai', methods=['GET'])
+def debug_ai():
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    return jsonify({
+        'key_set': bool(api_key),
+        'key_preview': api_key[:10] + '...' if api_key else 'NOT SET'
+    })
