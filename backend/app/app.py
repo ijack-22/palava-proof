@@ -580,7 +580,8 @@ def subscribe():
     elif not phone.startswith('+'):
         phone = '+231' + phone
 
-    conn = get_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     try:
         existing = conn.execute('SELECT id, active FROM subscribers WHERE phone = ?', (phone,)).fetchone()
         if existing:
@@ -609,7 +610,8 @@ def unsubscribe():
     phone = (data.get('phone') or '').strip()
     if not phone:
         return jsonify({'error': 'Phone number required'}), 400
-    conn = get_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     try:
         conn.execute('UPDATE subscribers SET active = 0 WHERE phone = ?', (phone,))
         conn.commit()
