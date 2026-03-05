@@ -482,8 +482,11 @@ Focus on: social engineering, urgency, PIN requests, fake URLs, impersonation, m
             timeout=15
         )
         if res.status_code != 200:
+            print(f'VT API error: {res.status_code} {res.text}')
             return 0, [], []
-        text = res.json().get('content', [{}])[0].get('text', '{}')
+        resp_json = res.json()
+        print(f'Claude raw response: {resp_json}')
+        text = resp_json.get('content', [{}])[0].get('text', '{}')
         text = text.replace('```json', '').replace('```', '').strip()
         result = json.loads(text)
         boost = int(result.get('confidence_boost', 0))
@@ -492,7 +495,9 @@ Focus on: social engineering, urgency, PIN requests, fake URLs, impersonation, m
         return boost, reasons, tips
     except Exception as e:
         print(f'Claude AI analysis failed: {e}')
-        return 0, [], []
+        import traceback
+        traceback.print_exc()
+        return 0, [], [], str(e)
 
 
 @app.route('/api/subscribe', methods=['POST'])
