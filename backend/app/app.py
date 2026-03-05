@@ -14,7 +14,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 app = Flask(__name__)
-limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"], storage_uri="memory://")
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"], storage_uri="memory://", on_breach=lambda *args: None)
 allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
 allowed_origins = [o.strip() for o in allowed_origins_str.split(",")] if "," in allowed_origins_str else allowed_origins_str
 CORS(app, origins=allowed_origins)
@@ -231,16 +231,6 @@ def health():
 @app.route('/api/check', methods=['POST'])
 @limiter.limit('30 per minute')
 
-def require_api_key(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        key = request.headers.get('X-API-Key')
-        api_secret = os.environ.get('API_SECRET', '')
-        if api_secret and (not key or key != api_secret):
-            return jsonify({'error': 'Unauthorized'}), 401
-        return f(*args, **kwargs)
-    return decorated
 
 def check_message():
     data = request.get_json()
