@@ -628,6 +628,24 @@ def test_ai():
     )
     return jsonify({'boost': boost, 'reasons': reasons, 'tips': tips})
 
+
+@app.route('/api/admin/subscribers', methods=['GET'])
+def admin_subscribers():
+    secret = request.args.get('key', '')
+    if secret != os.environ.get('ADMIN_SECRET', 'palava-admin-2026'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute('SELECT id, name, phone, city, country, subscribed_at, active FROM subscribers ORDER BY subscribed_at DESC').fetchall()
+        return jsonify({
+            'total': len(rows),
+            'active': sum(1 for r in rows if r['active']),
+            'subscribers': [dict(r) for r in rows]
+        })
+    finally:
+        conn.close()
+
 @app.route('/api/debug-ai', methods=['GET'])
 def debug_ai():
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
