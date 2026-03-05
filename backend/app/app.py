@@ -448,6 +448,56 @@ def vt_score_and_tips(vt_results):
 def analyze_with_claude(message, current_confidence):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
     if not api_key:
+        print('Claude AI: No API key set')
+        return 0, [], []
+    try:
+        payload = {
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 300,
+            "messages": [{
+                "role": "user",
+                "content": f"""You are a scam detection expert for Liberia. Analyze this message and respond ONLY with a JSON object, no markdown, no explanation.
+
+Message: "{message}"
+
+JSON format:
+{{
+  "is_scam": true,
+  "confidence_boost": 25,
+  "reasons": ["reason1"],
+  "tips": ["tip1"]
+}}
+
+confidence_boost must be a number between 0 and 40."""
+            }]
+        }
+        print(f'Claude AI: Calling API with key {api_key[:10]}...')
+        res = http_requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={{
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json'
+            }},
+            json=payload,
+            timeout=15
+        )
+        print(f'Claude AI: Status {res.status_code}')
+        if res.status_code != 200:
+            print(f'Claude AI error: {res.text}')
+            return 0, [], []
+        resp = res.json()
+        text = resp.get('content', [{{}}])[0].get('text', '{{}}')
+        print(f'Claude AI raw: {text}')
+        text = text.strip().replace('```json', '').replace('```', '').strip()
+        result = json.loads(text)
+        boost = min(int(result.get('confidence_boost', 0)), 40)
+        reasons = result.get('reasons', [])
+        tips = result.get('tips', [])
+        print(f'Claude AI: boost={boost} reasons={reasons}')
+        return boost, reasons, tips
+    except Exception as e:
+        print(f'Claude AI exception: {e}')
         return 0, [], []
     try:
         payload = {
