@@ -461,3 +461,52 @@ function showToast(message) {
 
 window.addEventListener('online',  () => showToast('📡 Back online'));
 window.addEventListener('offline', () => showToast('⚡ Offline mode — using local detection'));
+
+// ── SUBSCRIBE HANDLER ──
+async function handleSubscribe() {
+    const name  = document.getElementById('sub-name').value.trim();
+    const phone = document.getElementById('sub-phone').value.trim();
+    const city  = document.getElementById('sub-city').value.trim();
+    const btn   = document.getElementById('subscribe-btn');
+    const fb    = document.getElementById('sub-feedback');
+
+    fb.className = 'sub-feedback';
+    fb.textContent = '';
+
+    if (!name) { fb.className = 'sub-feedback error'; fb.textContent = 'Please enter your name.'; return; }
+    if (!phone) { fb.className = 'sub-feedback error'; fb.textContent = 'Please enter your phone number.'; return; }
+    if (phone.replace(/\D/g,'').length < 8) { fb.className = 'sub-feedback error'; fb.textContent = 'Please enter a valid phone number.'; return; }
+
+    btn.disabled = true;
+    document.getElementById('sub-btn-text').textContent = '⏳ Subscribing...';
+
+    try {
+        const res = await fetch(`${API_BASE}/api/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, city, country: 'Liberia' })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            fb.className = 'sub-feedback success';
+            fb.textContent = '✅ ' + (data.message || 'Subscribed! You will receive scam alerts via SMS.');
+            document.getElementById('sub-name').value = '';
+            document.getElementById('sub-phone').value = '';
+            document.getElementById('sub-city').value = '';
+            document.getElementById('sub-btn-text').textContent = '✅ Subscribed!';
+        } else if (res.status === 409 || (data.message && data.message.includes('Already'))) {
+            fb.className = 'sub-feedback success';
+            fb.textContent = '✅ You are already subscribed!';
+            document.getElementById('sub-btn-text').textContent = '🔔 Subscribe for Free Alerts';
+            btn.disabled = false;
+        } else {
+            throw new Error(data.error || 'Subscription failed');
+        }
+    } catch (err) {
+        fb.className = 'sub-feedback error';
+        fb.textContent = '❌ ' + (err.message || 'Something went wrong. Please try again.');
+        document.getElementById('sub-btn-text').textContent = '🔔 Subscribe for Free Alerts';
+        btn.disabled = false;
+    }
+}
