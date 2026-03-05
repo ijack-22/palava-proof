@@ -553,6 +553,15 @@ def unsubscribe():
     finally:
         conn.close()
 
+
+@app.route('/api/test-ai', methods=['GET'])
+def test_ai():
+    boost, reasons, tips = analyze_with_claude(
+        "Your Orange Money account has been credited with $500. Enter your PIN at https://orange-m0ney-verify.com/confirm",
+        65
+    )
+    return jsonify({'boost': boost, 'reasons': reasons, 'tips': tips})
+
 @app.route('/api/debug-ai', methods=['GET'])
 def debug_ai():
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
