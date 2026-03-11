@@ -140,6 +140,51 @@ PATTERNS = [
     (r'you.*won.*gift|won.*yourself|gift.*collect|collect.*winning|collect.*prize', 30, 'lottery', 'Unsolicited gift or prize notifications are almost always scams.'),
     (r'winings|winnigs|priize|gigt|lotterry|competiton', 25, 'phishing', 'Deliberate misspellings are used by scammers to bypass spam filters.'),
 
+
+    # ── WHATSAPP ACCOUNT HIJACKING ──
+    (r'verification.*code.*send|send.*code.*whatsapp|share.*code.*received|otp.*forward|forward.*code.*friend', 35, 'whatsapp_hijack', 'Never share a verification code with anyone — this is how scammers steal your WhatsApp account.'),
+    (r'help.*send.*money.*treatment|borrow.*money.*pay.*back|urgent.*transfer.*sick|friend.*hospital.*money', 30, 'whatsapp_hijack', 'A friend asking for emergency mobile money may have had their account hijacked — call them directly.'),
+    (r'i.*will.*pay.*back|pay.*back.*tomorrow|send.*now.*refund|send.*small.*amount.*return', 25, 'whatsapp_hijack', 'Promises to repay quickly are a classic hijacked-account scam tactic.'),
+    (r'do.*not.*tell.*anyone.*code|keep.*secret.*code|private.*code.*share', 35, 'whatsapp_hijack', 'Anyone asking you to secretly share a code is attempting account takeover.'),
+    (r'whatsapp.*account.*verify|whatsapp.*suspend.*code|reactivate.*whatsapp.*otp', 35, 'whatsapp_hijack', 'WhatsApp never asks for your code via message — this is a hijack attempt.'),
+
+    # ── FAKE INVESTMENT / DIGITAL SUSU ──
+    (r'digital.*susu|susu.*platform|susu.*invest|online.*susu.*earn', 30, 'investment', 'Digital susu platforms promising high returns are not regulated — your money is at risk.'),
+    (r'baytex|smart.*ai.*limited|ai.*trading.*platform|ai.*invest.*profit', 35, 'investment', 'AI trading platforms promising guaranteed returns are fraudulent — the Central Bank of Liberia has issued warnings.'),
+    (r'invest.*1000.*get.*2000|invest.*double.*24|invest.*hours.*profit|double.*24.*hours', 35, 'investment', 'No legitimate investment doubles money in 24 hours — this is a Ponzi scheme.'),
+    (r'crypto.*mining.*join|mining.*investment.*daily|cloud.*mining.*profit|bitcoin.*mining.*liberia', 30, 'investment', 'Crypto mining investment schemes are scams — there is no real mining happening.'),
+    (r'licensed.*investment|cbl.*approved.*invest|central.*bank.*approved.*platform', 30, 'investment', 'Always verify investment licenses directly with the Central Bank of Liberia.'),
+    (r'trading.*signal.*group|forex.*group.*join|binary.*option.*earn|fx.*profit.*daily', 25, 'investment', 'Forex signal groups and binary option schemes are unregulated and consistently fraudulent.'),
+    (r'passive.*income.*daily|earn.*while.*sleep|automated.*profit.*system', 25, 'investment', 'Passive income platforms that require upfront payment are almost always Ponzi schemes.'),
+
+    # ── FAKE TRAVEL / VISA / SCHOLARSHIP ──
+    (r'visa.*processing.*fee|travel.*abroad.*fee|overseas.*job.*processing|visa.*application.*whatsapp', 30, 'job_scam', 'Legitimate visa agents are registered — never pay visa fees via mobile money to a stranger.'),
+    (r'scholarship.*apply.*fee|scholarship.*processing.*pay|study.*abroad.*fee.*send', 30, 'job_scam', 'Legitimate scholarships never require upfront processing fees.'),
+    (r'canada.*visa.*agent|uk.*visa.*help.*fee|usa.*travel.*document.*pay|europe.*work.*permit.*fee', 30, 'job_scam', 'Travel visa agents asking for mobile money payments are almost always fraudulent.'),
+    (r'travel.*document.*ready|passport.*processing.*fee|immigration.*clearance.*pay', 30, 'job_scam', 'Immigration fees are paid directly to government offices — never via WhatsApp or mobile money.'),
+    (r'police.*arrested.*travel|stuck.*immigration.*fee|detained.*airport.*help', 30, 'advance_fee', 'Fake immigration emergency stories are used to extort money from victims.'),
+
+    # ── GOVERNMENT / GRANT SCAMS ──
+    (r'government.*loan.*apply|youth.*empowerment.*fund.*register|small.*business.*grant.*fee', 30, 'govt_scam', 'The Liberian government does not collect loan registration fees via mobile money or WhatsApp.'),
+    (r'ministry.*commerce.*loan|ministry.*gender.*grant|executive.*mansion.*fund', 30, 'govt_scam', 'Scammers impersonate government ministries — verify all programs at official government offices.'),
+    (r'cbl.*grant|central.*bank.*loan.*liberia|lbdi.*government.*program', 30, 'govt_scam', 'The Central Bank of Liberia does not distribute grants via SMS or WhatsApp.'),
+    (r'register.*fee.*grant|activation.*fee.*loan|processing.*fee.*government.*program', 35, 'govt_scam', 'Any government program requiring an upfront registration fee is fraudulent.'),
+    (r'facebook.*government.*loan|whatsapp.*grant.*apply|telegram.*government.*fund', 30, 'govt_scam', 'Government programs are never administered through Facebook, WhatsApp or Telegram links.'),
+    (r'nphil.*grant|lisgis.*program|lrdc.*loan|epa.*liberia.*fund', 25, 'govt_scam', 'Verify any program claiming to be from a Liberian agency directly at their official office.'),
+
+    # ── MOBILE MONEY ADVANCED TACTICS ──
+    (r'sent.*wrong.*number.*refund|transfer.*mistake.*send.*back|wrong.*account.*please.*return', 30, 'mobile_money', 'The "wrong transfer" trick is a scam — contact MTN or Lonestar directly to reverse genuine errors.'),
+    (r'mtn.*agent.*withdraw|lonestar.*agent.*help|orange.*agent.*collect.*money', 25, 'mobile_money', 'Fake mobile money agents are a growing scam — only use verified agent locations.'),
+    (r'momo.*account.*hack.*help|mtn.*momo.*recover.*fee|lonestar.*account.*restore.*pay', 30, 'mobile_money', 'Offers to help recover hacked MoMo accounts are themselves scams.'),
+    (r'mtn.*momo.*pin.*reset.*link|lonestar.*cash.*verify.*click|orange.*money.*confirm.*link', 35, 'mobile_money', 'MTN, Lonestar and Orange Money never send PIN reset links — this is phishing.'),
+
+    # ── ROMANCE SCAM ADVANCED ──
+    (r'met.*online.*love|facebook.*friend.*love|instagram.*relationship.*money', 25, 'romance_scam', 'Online relationships that quickly move to financial requests are romance scams.'),
+    (r'soldier.*abroad.*money|doctor.*overseas.*help|engineer.*project.*stuck', 30, 'romance_scam', 'Fake soldiers, doctors and engineers abroad are the most common romance scam personas.'),
+    (r'gift.*stuck.*customs.*fee|package.*detained.*clear.*fee|surprise.*gift.*delivery.*pay', 30, 'romance_scam', 'Gift packages requiring customs fees from someone you met online are always scams.'),
+    (r'video.*call.*later.*trust|camera.*broken.*believe.*me|cannot.*video.*shy', 20, 'romance_scam', 'Refusal to video call is a major warning sign of a romance scammer.'),
+    (r'tiktok.*love|tiktok.*relationship.*money|tiktok.*friend.*send.*cash', 25, 'romance_scam', 'Romance scams increasingly start on TikTok — be cautious of financial requests from new online contacts.'),
+
     # ── LIBERIA-SPECIFIC ──
     (r'\+231.*prize|\+231.*won|231.*lucky|\+231.*claim', 20, 'lottery', 'Liberian phone numbers used in prize notifications are a common scam pattern.'),
     (r'liberiabank.*verify|lbdi.*urgent|ecobank.*liberia.*click', 25, 'phishing', 'Banks in Liberia will never ask you to verify via SMS link.'),
@@ -706,3 +751,5 @@ def debug_ai():
         'key_set': bool(api_key),
         'key_preview': api_key[:10] + '...' if api_key else 'NOT SET'
     })
+
+# This will not work inline - let's do it properly
