@@ -552,7 +552,7 @@ def check_message():
         'scam_type': SCAM_LABELS.get(dominant_type) if dominant_type else None,
         'warnings': list(dict.fromkeys(warnings)),
         'tips': tips[:3],
-        'urls_checked': len(urls),
+        'urls_checked': urls_found if 'urls_found' in dir() else 0,
     })
 
 @app.route('/api/report', methods=['POST'])
