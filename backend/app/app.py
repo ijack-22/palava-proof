@@ -154,6 +154,8 @@ SCAM_LABELS = {
     'romance_scam': 'Romance Scam',
     'advance_fee': 'Advance Fee (419) Scam',
     'investment': 'Investment / Ponzi Scam',
+    'whatsapp_hijack': 'WhatsApp Account Hijacking',
+    'govt_scam': 'Government / Grant Scam',
 }
 
 # ── Suspicious URL patterns ─────────────────────────────────
