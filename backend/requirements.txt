@@ -20,3 +20,7 @@ urllib3==2.6.3
 Werkzeug==3.1.6
 requests
 flask-limiter
+datasets==4.7.0
+numpy==2.4.3
+pandas==3.0.1
+scikit-learn==1.8.0
