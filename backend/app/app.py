@@ -1,4 +1,5 @@
 import os
+import pickle
 import re
 import hashlib
 import json
@@ -14,6 +15,17 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 app = Flask(__name__)
+
+# ── ML SCAM MODEL ──────────────────────────────────────────
+ML_MODEL = None
+ML_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'scam_model.pkl')
+try:
+    with open(ML_MODEL_PATH, 'rb') as f:
+        ML_MODEL = pickle.load(f)
+    print(f'ML model loaded ✅')
+except Exception as e:
+    print(f'ML model not loaded: {e}')
+
 limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"], storage_uri="memory://", on_breach=lambda *args: None)
 allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
 allowed_origins = [o.strip() for o in allowed_origins_str.split(",")] if "," in allowed_origins_str else allowed_origins_str
@@ -292,6 +304,16 @@ def check_message():
     warnings = warnings + vt_warnings
     tips = tips + vt_tips
     # ── Claude AI boost (only when confidence < 70%) ──
+    # ── ML MODEL SCORING ──
+    ml_score, ml_err = ml_scam_score(message)
+    if ml_score > 0:
+        # Weighted merge: 60% patterns, 40% ML
+        merged = int(confidence * 0.6 + ml_score * 0.4)
+        # If ML is very confident (>85%) boost regardless of patterns
+        if ml_score > 85:
+            merged = max(merged, ml_score)
+        confidence = merged
+
     if confidence < 70:
         ai_boost, ai_reasons, ai_tips = analyze_with_claude(message, confidence)
         confidence += ai_boost
@@ -453,6 +475,18 @@ def vt_score_and_tips(vt_results):
         elif r['verdict'] == 'clean' and r['total'] > 0:
             warnings.append(f"✅ {r['url']} checked by {r['total']} vendors — no threats detected.")
     return extra_score, warnings, tips
+
+
+def ml_scam_score(message):
+    """Score a message using the ML model. Returns 0-100 confidence."""
+    if ML_MODEL is None:
+        return 0, "ML model not available"
+    try:
+        proba = ML_MODEL.predict_proba([message])[0][1]
+        score = int(proba * 100)
+        return score, None
+    except Exception as e:
+        return 0, str(e)
 
 def analyze_with_claude(message, current_confidence):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
