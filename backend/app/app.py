@@ -203,57 +203,240 @@ SCAM_LABELS = {
     'govt_scam': 'Government / Grant Scam',
 }
 
-# ── Suspicious URL patterns ─────────────────────────────────
-SUSPICIOUS_DOMAINS = [
-    r'bit\.ly', r'tinyurl', r'goo\.gl', r'ow\.ly', r'is\.gd',
+# ══════════════════════════════════════════════════════════════
+# ML URL SCANNER — Own intelligence, no VirusTotal dependency
+# ══════════════════════════════════════════════════════════════
+import math
+
+TRUSTED_DOMAINS = {
+    'mtn.com.lr', 'lonestargsm.com', 'orangeliberia.com',
+    'lbdi.net', 'ecobank.com', 'gtbank.com',
+    'google.com', 'facebook.com', 'whatsapp.com', 'instagram.com',
+    'youtube.com', 'twitter.com', 'linkedin.com', 'microsoft.com',
+    'apple.com', 'amazon.com', 'paypal.com', 'wikipedia.org',
+    'gov.lr', 'mof.gov.lr', 'nphil.gov.lr',
+}
+
+KNOWN_SCAM_DOMAINS = [
     r'mtn-liberia', r'lonestar-cash', r'libtelco-verify',
     r'liberiabank-verify', r'lbdi-online', r'ecobank-lr',
+    r'mtn-momo-verify', r'orange-money-claim', r'lonestar-prize',
+    r'mtn-prize', r'liberia-grant', r'govt-loan-liberia',
+    r'claim-prize', r'winner-verify', r'free-money-liberia',
+    r'crypto-invest-lr', r'susu-platform', r'digital-susu',
 ]
 
-SUSPICIOUS_TLD = ['.xyz', '.top', '.click', '.loan', '.work', '.online', '.site']
+HIGH_RISK_TLD = [
+    '.xyz', '.top', '.click', '.loan', '.work', '.online',
+    '.site', '.win', '.gq', '.ml', '.cf', '.tk', '.ga',
+    '.buzz', '.club', '.info', '.biz', '.stream', '.download',
+]
 
-def analyze_url(url):
+URL_SHORTENERS = [
+    r'bit\.ly', r'tinyurl\.com', r't\.co', r'goo\.gl',
+    r'ow\.ly', r'is\.gd', r'tiny\.cc', r'rb\.gy',
+    r'shorturl\.at', r'cutt\.ly', r'buff\.ly',
+]
+
+SCAM_URL_KEYWORDS = [
+    'prize', 'winner', 'claim', 'verify', 'urgent', 'free',
+    'bonus', 'reward', 'grant', 'loan', 'invest', 'profit',
+    'confirm', 'suspend', 'blocked', 'secure', 'update',
+    'login', 'signin', 'account', 'momo', 'mtn', 'lonestar',
+    'orange', 'liberia', 'government', 'ministry',
+]
+
+BRAND_IMPERSONATION = [
+    (r'paypa[l1]', 'PayPal'),
+    (r'g[o0]{2}gle', 'Google'),
+    (r'faceb[o0]{2}k', 'Facebook'),
+    (r'[a@]mazon', 'Amazon'),
+    (r'micr[o0]s[o0]ft', 'Microsoft'),
+    (r'mtn[^.]*\.(com|net|org|xyz|top|click)(?!\.lr)', 'MTN'),
+    (r'lonestar[^.]*\.(com|net|org|xyz|top)(?!\.lr)', 'Lonestar'),
+    (r'orange[^.]*money', 'Orange Money'),
+    (r'ecobank[^.]*\.(xyz|top|click|online)', 'Ecobank'),
+]
+
+def extract_url_features(url):
+    features = {}
+    try:
+        if not url.startswith('http'):
+            url = 'http://' + url
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower().replace('www.', '')
+        full = url.lower()
+        features['length'] = len(url)
+        features['dots'] = domain.count('.')
+        features['hyphens'] = domain.count('-')
+        features['has_ip'] = 1 if re.match(r'^\d+\.\d+\.\d+\.\d+', domain) else 0
+        features['is_https'] = 1 if parsed.scheme == 'https' else 0
+        features['scam_keywords'] = sum(1 for k in SCAM_URL_KEYWORDS if k in full)
+        features['subdomains'] = max(0, domain.count('.') - 1)
+        domain_base = domain.split('.')[0]
+        if len(domain_base) > 0:
+            freq = {c: domain_base.count(c)/len(domain_base) for c in set(domain_base)}
+            entropy = -sum(p * math.log2(p) for p in freq.values() if p > 0)
+            features['entropy'] = round(entropy, 2)
+        else:
+            features['entropy'] = 0
+        features['has_port'] = 1 if parsed.port else 0
+        features['path_depth'] = url.count('/')
+    except Exception:
+        features = {k: 0 for k in ['length','dots','hyphens','has_ip','is_https',
+                                    'scam_keywords','subdomains','entropy','has_port','path_depth']}
+    return features
+
+def ml_analyze_url(url):
     score = 0
     flags = []
+    threat_type = None
+    should_blacklist = False
     try:
-        parsed = urlparse(url if url.startswith('http') else 'http://' + url)
-        domain = parsed.netloc.lower()
+        if not url.startswith('http'):
+            url = 'http://' + url
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower().replace('www.', '')
+        full_url = url.lower()
 
-        for pattern in SUSPICIOUS_DOMAINS:
+        # Layer 1 — Whitelist
+        base_domain = '.'.join(domain.split('.')[-2:])
+        if base_domain in TRUSTED_DOMAINS:
+            return 0, ['Trusted legitimate domain'], 'safe', False
+
+        # Layer 2 — Known scam domains
+        for pattern in KNOWN_SCAM_DOMAINS:
             if re.search(pattern, domain):
-                score += 30
-                flags.append(f'Suspicious domain: {domain}')
+                score += 60
+                flags.append(f'Known scam domain: {domain}')
+                threat_type = 'phishing'
+                should_blacklist = True
                 break
 
-        for tld in SUSPICIOUS_TLD:
+        # Layer 3 — Community blacklist
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT times_reported FROM url_blacklist WHERE domain = ?", (domain,))
+            row = c.fetchone()
+            conn.close()
+            if row:
+                score += min(row[0] * 15, 50)
+                flags.append(f'Community reported {row[0]} time(s)')
+                threat_type = threat_type or 'community_flagged'
+        except Exception:
+            pass
+
+        # Layer 4 — URL shorteners
+        for shortener in URL_SHORTENERS:
+            if re.search(shortener, domain):
+                score += 25
+                flags.append('URL shortener — destination unknown')
+                threat_type = threat_type or 'suspicious_redirect'
+                break
+
+        # Layer 5 — Brand impersonation
+        for pattern, brand in BRAND_IMPERSONATION:
+            if re.search(pattern, domain):
+                score += 50
+                flags.append(f'Possible {brand} impersonation: {domain}')
+                threat_type = 'phishing'
+                should_blacklist = True
+                break
+
+        # Layer 6 — High risk TLD
+        for tld in HIGH_RISK_TLD:
             if domain.endswith(tld):
                 score += 20
                 flags.append(f'High-risk domain extension: {tld}')
+                threat_type = threat_type or 'suspicious_tld'
                 break
 
-        # Check blacklist
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('SELECT times_reported FROM url_blacklist WHERE domain = ?', (domain,))
-        row = c.fetchone()
-        conn.close()
-        if row:
-            score += min(row[0] * 10, 40)
-            flags.append(f'Reported by community {row[0]} time(s)')
+        # Layer 7 — HTTP not HTTPS
+        if parsed.scheme == 'http':
+            score += 20
+            flags.append('Insecure HTTP link — never enter personal info here')
 
-        # IP address instead of domain name
+        # Layer 8 — Raw IP address
         if re.match(r'^\d+\.\d+\.\d+\.\d+', domain):
-            score += 25
-            flags.append('Uses raw IP address instead of domain name')
+            score += 35
+            flags.append('Raw IP address used instead of domain name')
+            threat_type = 'phishing'
+            should_blacklist = True
 
-        # Very long subdomain (common in phishing)
+        # Layer 9 — Too many subdomains
         if domain.count('.') > 3:
-            score += 15
-            flags.append('Unusually complex domain structure')
+            score += 20
+            flags.append(f'Suspicious subdomain depth: {domain}')
 
-    except Exception:
-        pass
-    return min(score, 60), flags
+        # Layer 10 — Scam keywords in URL
+        found_keywords = [k for k in SCAM_URL_KEYWORDS if k in full_url]
+        if len(found_keywords) >= 2:
+            score += len(found_keywords) * 8
+            flags.append(f'Scam keywords in URL: {", ".join(found_keywords[:4])}')
+            threat_type = threat_type or 'phishing'
+
+        # Layer 11 — Domain entropy
+        features = extract_url_features(url)
+        if features['entropy'] > 3.5:
+            score += 15
+            flags.append('Random-looking domain — common in phishing')
+
+        # Layer 12 — Excessive hyphens
+        if domain.count('-') >= 2:
+            score += 15
+            flags.append(f'Multiple hyphens in domain: {domain}')
+
+        # Layer 13 — Very long URL
+        if len(url) > 100:
+            score += 10
+            flags.append('Unusually long URL')
+
+        # Auto blacklist
+        if score >= 70:
+            should_blacklist = True
+
+        if should_blacklist:
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute("""INSERT INTO url_blacklist (domain, times_reported, first_seen)
+                             VALUES (?, 1, datetime('now'))
+                             ON CONFLICT(domain) DO UPDATE SET
+                             times_reported = times_reported + 1""", (domain,))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+
+    except Exception as e:
+        flags.append(f'URL analysis error: {str(e)}')
+
+    return min(score, 100), flags, threat_type or 'suspicious', should_blacklist
+
+
+def scan_urls_in_message(message):
+    url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+    bare_pattern = r'(?<!\S)www\.[^\s<>"{}|\\^`\[\]]+'
+    urls = re.findall(url_pattern, message) + re.findall(bare_pattern, message)
+    if not urls:
+        return 0, [], 0
+    total_score = 0
+    all_flags = []
+    for url in urls[:5]:
+        score, url_flags, threat_type, blacklisted = ml_analyze_url(url)
+        if score > 0:
+            total_score = max(total_score, score)
+            label = url[:40] + '...' if len(url) > 40 else url
+            all_flags.extend([f'[{label}] {f}' for f in url_flags])
+            if blacklisted:
+                all_flags.append(f'Auto-flagged: {urlparse(url).netloc}')
+    return total_score, all_flags, len(urls)
+
+# ══════════════════════════════════════════════════════════════
+# END ML URL SCANNER
+# ══════════════════════════════════════════════════════════════
+
 
 def check_phone_blacklist(text):
     phones = re.findall(r'(\+?231[0-9]{7,9}|0[0-9]{8,9})', text)
@@ -338,20 +521,12 @@ def check_message():
     confidence += phone_score
     warnings.extend(phone_flags)
 
-    # 4. URL analysis
-    urls = re.findall(r'https?://\S+|www\.\S+|bit\.ly/\S+|tinyurl\.com/\S+', message)
-    for url in urls:
-        url_score, url_flags = analyze_url(url)
+    # 4. ML URL analysis (own intelligence — no VirusTotal)
+    url_score, url_flags, urls_found = scan_urls_in_message(message)
+    if url_score > 0:
         confidence += url_score
         warnings.extend(url_flags)
-
-    # ── VirusTotal URL check ──
-    vt_urls = extract_urls(message)
-    vt_results = [check_url_virustotal(u) for u in vt_urls[:3]]
-    vt_score, vt_warnings, vt_tips = vt_score_and_tips([r for r in vt_results if r])
-    confidence += vt_score
-    warnings = warnings + vt_warnings
-    tips = tips + vt_tips
+        tips.append('Never click links in suspicious messages — verify directly with the sender.')
     # ── Claude AI boost (only when confidence < 70%) ──
     # ── ML MODEL SCORING ──
     ml_score, ml_err = ml_scam_score(message)
