@@ -684,6 +684,17 @@ def admin_subscribers():
     finally:
         conn.close()
 
+
+@app.route('/api/debug-ml', methods=['GET'])
+def debug_ml():
+    import os
+    return jsonify({
+        'ml_loaded': ML_MODEL is not None,
+        'model_path': ML_MODEL_PATH,
+        'file_exists': os.path.exists(ML_MODEL_PATH),
+        'dir_files': os.listdir(os.path.dirname(ML_MODEL_PATH))
+    })
+
 @app.route('/api/debug-ai', methods=['GET'])
 def debug_ai():
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
