@@ -24,7 +24,9 @@ try:
         ML_MODEL = pickle.load(f)
     print(f'ML model loaded ✅')
 except Exception as e:
-    print(f'ML model not loaded: {e}')
+    print(f'ML model load error: {type(e).__name__}: {e}')
+    import traceback
+    traceback.print_exc()
 
 limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"], storage_uri="memory://", on_breach=lambda *args: None)
 allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
